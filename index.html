@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Regocijo - Juego de Memoria</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Mystery+Quest&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    body {
+      font-family: "Mystery Quest", system-ui;
+      background-image: url('img/fondo.jpg');
+      background-size: cover;
+      background-position: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #d4d4d4;
+      pointer-events: none;
+      z-index: -1;
+      transition: opacity 1s ease;
+    }
+
+    h1 {
+      text-align: center;
+      font-weight: 900;
+      font-size: 60px;
+      color: rgb(255, 251, 0);
+      margin-bottom: 0;
+      margin-top: 0;
+      width: 100vw;
+      text-shadow: 2px 2px 6px rgb(119, 119, 119);
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(5, 140px);
+      grid-gap: 15px;
+      margin-top: 20px;
+    }
+
+    .card {
+      width: 140px;
+      height: 140px;
+      position: relative;
+      perspective: 1000px;
+      cursor: pointer;
+      border: 1px solid #cc00a0;
+      border-radius: 10px;
+    }
+
+    .card-inner {
+      width: 100%;
+      height: 100%;
+      transition: transform 0.6s;
+      transform-style: preserve-3d;
+      position: relative;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .card.flipped .card-inner {
+      transform: rotateY(180deg);
+    }
+
+    .card-front,
+    .card-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+    }
+
+    .card-front {
+      background-image: url('img/reverso.jpg');
+      background-size: cover;
+      background-position: center;
+      font-size: 50px;
+      user-select: none;
+    }
+
+    .card-back {
+      background-size: cover;
+      background-position: center;
+      transform: rotateY(180deg);
+    }
+
+    .button-group {
+      margin-top: 25px;
+      display: flex;
+      gap: 15px;
+    }
+
+    button,
+    a.button {
+      font-family: "Mystery Quest", system-ui;
+      padding: 12px 28px;
+      font-size: 25px;
+      font-weight: 900;
+      background-color: #d4d4d4;
+      color: rgb(255, 251, 0);
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+    }
+
+    button:hover,
+    a.button:hover {
+      background-color: #cc00a0;
+    }
+
+    #modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      background: rgb(249, 253, 0);
+      color: rgb(148, 148, 148);
+      padding: 30px 40px;
+      border-radius: 50px;
+      text-align: center;
+      font-size: 28px;
+      font-weight: 700;
+      z-index: 1000;
+      transition: transform 0.3s ease;
+      max-width: 90vw;
+      background-image: url('img/fonmodal.gif');
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+
+    #modal.show {
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    #modal button {
+      margin-top: 20px;
+      background-color: #cc00a0;
+      color: white;
+      font-size: 20px;
+      padding: 10px 20px;
+      border-radius: 10px;
+      cursor: pointer;
+      border: none;
+    }
+
+    #modal button:hover {
+      background-color: #d4d4d4;
+    }
+  </style>
+</head>
+<body>
+  <h1>Encuentra las parejas y únete a la fiesta</h1>
+  <div class="board" id="board"></div>
+  <div class="button-group">
+    <button onclick="initGame()">Reiniciar</button>
+    <a href="#" class="button">Back to the monster</a>
+  </div>
+
+  <div id="overlay"></div>
+
+  <div id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalDesc">
+    <div id="modalTitle">¡ Hondo Regocijo ! 🥳</div>
+    <div id="modalDesc" style="margin-top:10px; font-size:22px;">
+      Has encontrado todas las parejas. <br>
+      Pásalo bien.
+    </div>
+    <button id="closeModal">Cerrar</button>
+  </div>
+
+  <script>
+    const images = [
+      "https://picsum.photos/id/1025/140/140",
+      "https://picsum.photos/id/237/140/140",
+      "https://picsum.photos/id/1005/140/140",
+      "https://picsum.photos/id/1062/140/140",
+      "https://picsum.photos/id/1080/140/140",
+    ];
+
+    let cards = [];
+    let flippedCards = [];
+    let lockBoard = false;
+    let matchedCount = 0;
+
+    function initGame() {
+      matchedCount = 0;
+      const overlay = document.getElementById("overlay");
+      overlay.style.opacity = 1;
+
+      // Desbloquear el audio al primer clic
+      document.body.addEventListener('click', () => {
+        const audio = document.getElementById("matchSound");
+        if (audio.paused) {
+          audio.play().then(() => {
+            audio.pause();
+            audio.currentTime = 0;
+          }).catch(() => {});
+        }
+      }, { once: true });
+
+      const board = document.getElementById("board");
+      board.innerHTML = "";
+      const duplicated = [...images, ...images];
+      cards = duplicated.sort(() => 0.5 - Math.random());
+
+      cards.forEach((img) => {
+        const card = document.createElement("div");
+        card.classList.add("card");
+        card.dataset.image = img;
+        card.innerHTML = `
+          <div class="card-inner">
+            <div class="card-front"></div>
+            <div class="card-back" style="background-image: url('${img}')"></div>
+          </div>
+        `;
+        card.addEventListener("click", flipCard);
+        board.appendChild(card);
+      });
+    }
+
+    function flipCard() {
+      if (lockBoard || this.classList.contains("flipped")) return;
+
+      this.classList.add("flipped");
+      flippedCards.push(this);
+
+      if (flippedCards.length === 2) {
+        lockBoard = true;
+        const [first, second] = flippedCards;
+        const isMatch = first.dataset.image === second.dataset.image;
+
+        if (isMatch) {
+          matchedCount++;
+          updateBackground();
+
+          const matchSound = document.getElementById("matchSound");
+          matchSound.currentTime = 0;
+          matchSound.play().catch(() => {});
+
+          flippedCards = [];
+          lockBoard = false;
+
+          if (matchedCount === images.length) {
+            setTimeout(() => {
+              showModal();
+            }, 300);
+          }
+        } else {
+          setTimeout(() => {
+            first.classList.remove("flipped");
+            second.classList.remove("flipped");
+            flippedCards = [];
+            lockBoard = false;
+          }, 1000);
+        }
+      }
+    }
+
+    function updateBackground() {
+      const overlay = document.getElementById("overlay");
+      const progress = matchedCount / images.length;
+      overlay.style.opacity = 1 - progress;
+    }
+
+function showModal() {
+  const modal = document.getElementById("modal");
+  modal.classList.add("show");
+
+  const celebrationSound = document.getElementById("celebrationSound");
+  celebrationSound.currentTime = 0;
+  celebrationSound.play().catch(() => {});
+}
+
+
+    function hideModal() {
+      const modal = document.getElementById("modal");
+      modal.classList.remove("show");
+    }
+
+    document.getElementById("closeModal").addEventListener("click", () => {
+      hideModal();
+    });
+
+    initGame();
+  </script>
+
+  <!-- 🔊 Sonido de pareja encontrada (reemplazado) -->
+  <audio id="matchSound" preload="auto" src="https://www.soundjay.com/buttons/sounds/button-4.mp3"></audio>
+  <audio id="celebrationSound" preload="auto" src="https://www.soundjay.com/human/sounds/party-horn-01.mp3"></audio>
+  
+</body>
+</html>
